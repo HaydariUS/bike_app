@@ -43,7 +43,7 @@ async function loadRentals() {
   const response = await fetch(apiUrl);
   const rentals = await response.json();
 
-  const logDiv = document.getElementById("rentalLog");
+  const logDiv = document.getElementById("rentedBikes");
   logDiv.innerHTML = "";
 
   if (rentals.length === 0) {
