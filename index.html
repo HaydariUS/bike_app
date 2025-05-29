@@ -98,44 +98,78 @@
     <input type="text" id="room" required>
 
     <label>Select Available Bikes:</label>
-    <div id="bikeOptions">
-      <label><input type="checkbox" name="bikes" value="Bike 1"> Bike 1</label><br>
-      <label><input type="checkbox" name="bikes" value="Bike 2"> Bike 2</label><br>
-      <label><input type="checkbox" name="bikes" value="Bike 3"> Bike 3</label><br>
-      <label><input type="checkbox" name="bikes" value="Bike 4"> Bike 4</label><br>
-      <label><input type="checkbox" name="bikes" value="Bike 5"> Bike 5</label><br>
-    </div><br>
+    <div id="bikeOptions"></div>
 
-    <button type="submit">Rent Bike</button>
+    <br><button type="submit">Rent Bike</button>
   </form>
 
   <script>
     const apiUrl = "https://script.google.com/macros/s/AKfycbz3XunDGghEu7t_p5T6YZVY73DHYtibPfENGfoIUKsYiAe0gllBO2vpqx0JqsXdcKbU4Q/exec";
+    const allBikes = ["Bike 1", "Bike 2", "Bike 3", "Bike 4", "Bike 5"];
+
+    let availableBikes = JSON.parse(localStorage.getItem("availableBikes")) || [...allBikes];
+
+    function updateBikeOptions() {
+      const container = document.getElementById("bikeOptions");
+      container.innerHTML = "";
+
+      if (availableBikes.length === 0) {
+        container.innerHTML = "<p>No bikes available.</p>";
+        return;
+      }
+
+      availableBikes.forEach(bike => {
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.name = "bikes";
+        checkbox.value = bike;
+
+        const label = document.createElement("label");
+        label.textContent = bike;
+
+        container.appendChild(checkbox);
+        container.appendChild(label);
+        container.appendChild(document.createElement("br"));
+      });
+    }
+
+    updateBikeOptions();
 
     document.getElementById("rentalForm").addEventListener("submit", async function(event) {
       event.preventDefault();
 
-      const name = document.getElementById("name").value;
-      const room = document.getElementById("room").value;
-      const bikes = Array.from(document.querySelectorAll('input[name="bikes"]:checked')).map(el => el.value);
+      const name = document.getElementById("name").value.trim();
+      const room = document.getElementById("room").value.trim();
+      const bikes = Array.from(document.querySelectorAll('input[name="bikes"]:checked')).map(cb => cb.value);
 
       if (!name || !room || bikes.length === 0) {
         alert("Please fill all fields and select at least one bike.");
         return;
       }
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ name, room, bikes })
-      });
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, room, bikes })
+        });
 
-      const result = await response.json();
-      if (result.status === "success") {
-        alert("Rental submitted!");
-        document.getElementById("rentalForm").reset();
-      } else {
-        alert("Error submitting rental.");
+        const result = await response.json();
+        if (result.status === "success") {
+          alert("Rental submitted!");
+
+          // Update localStorage availability
+          availableBikes = availableBikes.filter(b => !bikes.includes(b));
+          localStorage.setItem("availableBikes", JSON.stringify(availableBikes));
+
+          document.getElementById("rentalForm").reset();
+          updateBikeOptions();
+        } else {
+          alert("Error submitting rental.");
+        }
+      } catch (error) {
+        console.error("Submission error:", error);
+        alert("Failed to submit. Check internet or contact admin.");
       }
     });
   </script>
