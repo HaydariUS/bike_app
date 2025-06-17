@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Rental Tracker</title>
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f4f6f9;
+    }
+    .rental-entry {
+      background: #fff;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-left: 6px solid #4CAF50;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    small { color: #666; }
+    button {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #c0392b;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>📋 Bike Rental Log</h2>
+  <div id="rentedBikes"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js";
+    import {
+      getDatabase,
+      ref,
+      onValue,
+      set,
+      update,
+      get
+    } from "https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDl9pmS3qLHCFhvfSx-Q_uRHoZCZ_26rtk",
+      authDomain: "bikerental-9a384.firebaseapp.com",
+      databaseURL: "https://bikerental-9a384-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "bikerental-9a384",
+      storageBucket: "bikerental-9a384.appspot.com",
+      messagingSenderId: "797282370249",
+      appId: "1:797282370249:web:c73ff8a988e4a6d6774318"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const rentalsRef = ref(db, "rentals");
+    const availableRef = ref(db, "availableBikes");
+
+    const container = document.getElementById("rentedBikes");
+
+    onValue(rentalsRef, (snapshot) => {
+      const rentals = snapshot.val() || {};
+      renderRentals(rentals);
+    });
+
+    async function returnBikes(rentalId, rental) {
+      if (rental.returnedAt) return;
+
+      const availableSnap = await get(availableRef);
+      const availableBikes = availableSnap.val() || [];
+      const updatedAvailable = [...availableBikes, ...rental.bikes];
+
+      await update(ref(db, `rentals/${rentalId}`), {
+        returnedAt: new Date().toLocaleString()
+      });
+
+      await set(availableRef, updatedAvailable);
+    }
+
+    function renderRentals(rentals) {
+      container.innerHTML = "";
+      const entries = Object.entries(rentals);
+      if (entries.length === 0) {
+        container.innerHTML = "<p>No rental history.</p>";
+        return;
+      }
+
+      entries.forEach(([id, rental]) => {
+        const div = document.createElement("div");
+        div.className = "rental-entry";
+
+        let html = `
+          <div>
+            <strong>${rental.name}</strong>${rental.room ? ` (Room: ${rental.room})` : ""} rented: ${rental.bikes.join(", ")}<br>
+            <small>Booked at: ${rental.time}</small><br>
+        `;
+
+        if (rental.returnedAt) {
+          html += `<small style="color: green;">✅ Returned at: ${rental.returnedAt}</small>`;
+        } else {
+          html += `<button onclick="returnBikes('${id}', ${JSON.stringify(rental).replace(/"/g, '&quot;')})">Return</button>`;
+        }
+
+        html += `</div>`;
+        div.innerHTML = html;
+        container.appendChild(div);
+      });
+    }
+
+    window.returnBikes = returnBikes;
+  </script>
+
+</body>
+</html>
